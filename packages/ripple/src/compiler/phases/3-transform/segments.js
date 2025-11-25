@@ -6,6 +6,7 @@
  * @typedef {import('@volar/language-core').CodeMapping} VolarCodeMapping
  * @typedef {import('ripple/compiler').MappingData} MappingData
  * @typedef {import('ripple/compiler').CodeMapping} CodeMapping
+ * @typedef {import('ripple/compiler').ScopedClass} ScopedClass
  * @typedef {import('ripple/compiler').VolarMappingsResult} VolarMappingsResult
  * @typedef {{
  *	start: number,
@@ -16,6 +17,7 @@
 
 import { walk } from 'zimmerframe';
 import { build_source_to_generated_map, get_generated_position } from '../../source-map-utils.js';
+import { extract_classes_for_extension, is_element_dom_element } from '../../utils.js';
 
 /** @type {VolarCodeMapping['data']} */
 export const mapping_data = {
@@ -63,14 +65,45 @@ function loc_to_offset(line, column, line_offsets) {
  * @param {any} ast - The parsed AST
  * @param {string} source - Original source code
  * @param {number[]} source_line_offsets
- * @returns {CssSourceRegion[]}
+ * @returns {{cssRegions: CssSourceRegion[], scopedClasses: ScopedClass[]}}
  */
-function extractCssSourceRegions(ast, source, source_line_offsets) {
+function extract_classes_and_css_regions(ast, source, source_line_offsets) {
 	/** @type {CssSourceRegion[]} */
-	const regions = [];
+	const cssRegions = [];
+	/** @type {ScopedClass[]} */
+	const scopedClasses = [];
 
 	walk(ast, null, {
-		Element(node) {
+		Element(node, context) {
+			const is_dom_element = is_element_dom_element(node);
+			/** @type {any[]} */
+			const path = node.metadata?.path;
+			const component = path?.findLast((n) => n.type === 'Component');
+
+			// Only collect scoped class names when the component contains a style.
+			if (is_dom_element && component?.css && node.attributes) {
+				for (const attr of node.attributes) {
+					if (
+						attr.type === 'Attribute' &&
+						attr.name.type === 'Identifier' &&
+						attr.name.name === 'class' &&
+						attr.value
+					) {
+						const loc = attr.value.loc;
+						const gen_loc = loc_to_offset(loc.start.line, loc.start.column, source_line_offsets);
+						console.log('---> debug', gen_loc, attr.value.start);
+						const classes = extract_classes_for_extension(attr.value);
+						scopedClasses.push(...classes);
+					}
+				}
+			}
+
+			if (node.children) {
+				for (const child of node.children) {
+					context.visit(child);
+				}
+			}
+
 			// Check if this is a style element with CSS content
 			if (node.id?.name === 'style' && node.css) {
 				const openLoc = node.openingElement.loc;
@@ -81,7 +114,7 @@ function extractCssSourceRegions(ast, source, source_line_offsets) {
 				const cssEnd =
 					loc_to_offset(closeLoc.start.line, closeLoc.start.column, source_line_offsets) - 1;
 
-				regions.push({
+				cssRegions.push({
 					start: cssStart,
 					end: cssEnd,
 					content: node.css,
@@ -90,7 +123,7 @@ function extractCssSourceRegions(ast, source, source_line_offsets) {
 		},
 	});
 
-	return regions;
+	return { cssRegions, scopedClasses };
 }
 
 /**
@@ -1426,7 +1459,12 @@ export function convert_source_map_to_mappings(
 
 	/** @type {{ cssMappings: CodeMapping[], cssSources: string[] }} */
 	const cssResult = { cssMappings: [], cssSources: [] };
-	for (const region of extractCssSourceRegions(ast_from_source, source, source_line_offsets)) {
+	const { cssRegions, scopedClasses } = extract_classes_and_css_regions(
+		ast_from_source,
+		source,
+		source_line_offsets,
+	);
+	for (const region of cssRegions) {
 		cssResult.cssMappings.push({
 			sourceOffsets: [region.start],
 			generatedOffsets: [0],
@@ -1446,5 +1484,6 @@ export function convert_source_map_to_mappings(
 		code: generated_code,
 		mappings,
 		...cssResult,
+		scopedClasses,
 	};
 }

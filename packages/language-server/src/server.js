@@ -8,6 +8,7 @@ const { createDefinitionPlugin } = require('./definitionPlugin.js');
 const { createHoverPlugin } = require('./hoverPlugin.js');
 const { createCompletionPlugin } = require('./completionPlugin.js');
 const { createAutoInsertPlugin } = require('./autoInsertPlugin.js');
+const { createDocumentLinksPlugin } = require('./documentLinksPlugin.js');
 const { createTypeScriptDiagnosticFilterPlugin } = require('./typescriptDiagnosticPlugin.js');
 const {
 	getRippleLanguagePlugin,
@@ -120,6 +121,7 @@ function createRippleLanguageServer() {
 					// to intercept volar's and vscode default providers
 					createTypeScriptDiagnosticFilterPlugin(),
 					createHoverPlugin(),
+					createDocumentLinksPlugin(),
 				],
 			);
 

@@ -1,0 +1,18 @@
+component Card1() {
+	<div class={['foo', { baz: false }, 0 && 'bar', [true && 'bat']]} />
+}
+
+export component Card() {
+	<div class="card11">;;;;;;;;;;;;;
+		<Card1 />
+
+
+		<div class="card">{'Card'}</div>
+	</div>
+
+	<style>
+		.card {
+			color: red;
+		}
+	</style>
+}

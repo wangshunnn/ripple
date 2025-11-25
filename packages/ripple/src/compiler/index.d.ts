@@ -51,6 +51,11 @@ export interface CodeMapping extends VolarMapping<MappingData> {
 	data: MappingData;
 }
 
+export interface ScopedClass {
+	className: string;
+	offset: number;
+}
+
 /**
  * Result of Volar mappings compilation
  */
@@ -59,6 +64,7 @@ export interface VolarMappingsResult {
 	mappings: CodeMapping[];
 	cssMappings: CodeMapping[];
 	cssSources: string[];
+	scopedClasses: ScopedClass[];
 }
 
 /**

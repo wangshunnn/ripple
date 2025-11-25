@@ -750,3 +750,31 @@ export function index_to_key(index) {
 
 	return key;
 }
+
+/**
+ * Extract class names and offsets for the ripple plugin's class-jump-to-style feature.
+ * @param {Node & {start: number}} node
+ * @returns {import('ripple/compiler').ScopedClass[]}
+ */
+export function extract_classes_for_extension(node) {
+	const classes = [];
+	switch (node.type) {
+		case 'Literal': {
+			let offset = node.start;
+			let content = node.raw || '';
+			if (
+				(content.startsWith(`'`) && content.endsWith(`'`)) ||
+				(content.startsWith(`"`) && content.endsWith(`"`))
+			) {
+				offset++;
+				content = content.slice(1, -1);
+			}
+			classes.push({
+				className: content,
+				offset,
+			});
+			break;
+		}
+	}
+	return classes;
+}
